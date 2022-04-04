@@ -113,4 +113,69 @@ class EnvTest extends \Codeception\Test\Unit
             ),
         );
     }
+
+    public function testRouteRest()
+    {
+        $this->router->rest('foo', 'FooClass');
+
+        $routes = $this->router->getRoutes();
+        $aliases = $this->router->getAliases();
+
+        $this->assertCount(2, $routes);
+        $this->assertCount(2, $aliases);
+        $this->assertCount(2, $routes['/foo']);
+        $this->assertCount(4, $routes['/foo/@foo']);
+        $this->assertSame('FooClass@destroy', $routes['/foo/@foo']['DELETE']['handler']);
+    }
+
+    public function testRouteResource()
+    {
+        $this->router->resource('foo', 'FooClass');
+
+        $routes = $this->router->getRoutes();
+        $aliases = $this->router->getAliases();
+
+        $this->assertCount(4, $routes);
+        $this->assertCount(7, $aliases);
+        $this->assertCount(2, $routes['/foo']);
+        $this->assertCount(1, $routes['/foo/create']);
+        $this->assertCount(4, $routes['/foo/@foo']);
+        $this->assertCount(1, $routes['/foo/@foo/edit']);
+        $this->assertSame('FooClass@destroy', $routes['/foo/@foo']['DELETE']['handler']);
+    }
+
+    public function testLoad()
+    {
+        $this->router->load(TEST_DATA . '/classes/Controller');
+
+        $routes = $this->router->getRoutes();
+        $aliases = $this->router->getAliases();
+
+        $this->assertCount(3, $routes);
+        $this->assertCount(1, $aliases);
+        $this->assertSame('\AController@home', $routes['/a/home']['GET']['handler']);
+        $this->assertSame('\BController@home', $routes['/b']['GET']['handler']);
+
+        $expected = array(
+            'handler' => '\BController@complexAttributes',
+            'alias' => null,
+            'tags' => array(
+                'this', 'is', 'a', 'bunch', 'of', 'tags',
+            ),
+            'named-tag' => 'foo',
+            'named-tags' => array('foo', 'bar'),
+        );
+        $this->assertEquals($expected, $routes['/b/complex']['GET']);
+    }
+
+    public function testLoadClass()
+    {
+        $this->router->loadClass(new AController());
+
+        $routes = $this->router->getRoutes();
+        $aliases = $this->router->getAliases();
+
+        $this->assertCount(1, $routes);
+        $this->assertCount(0, $aliases);
+    }
 }

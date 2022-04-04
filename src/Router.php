@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ekok\Router;
 
 use Ekok\Utils\Arr;
+use Ekok\Utils\File;
 use Ekok\Utils\Val;
 
 class Router
@@ -111,6 +112,75 @@ class Router
         return $this;
     }
 
+    public function rest(
+        string $name,
+        string|object $class,
+        string $prefix = null,
+        string $attrs = null,
+    ): static {
+        $path = ($prefix ?? '/') . $name;
+        $param = '/@' . $name;
+
+        return $this->routeAll(array(
+            'GET @' . $name . '.index ' . $path . ' ' . $attrs => $this->routeBuildHandler($class, 'index'),
+            'POST @' . $name . '.index ' . $attrs => $this->routeBuildHandler($class, 'store'),
+            'GET @' . $name . '.item ' . $path . $param . ' ' . $attrs => $this->routeBuildHandler($class, 'show'),
+            'PUT|PATCH @' . $name . '.item ' . $attrs => $this->routeBuildHandler($class, 'update'),
+            'DELETE @' . $name . '.item ' . $attrs => $this->routeBuildHandler($class, 'destroy'),
+        ));
+    }
+
+    public function resource(
+        string $name,
+        string|object $class,
+        string $prefix = null,
+        string $attrs = null,
+    ): static {
+        $path = ($prefix ?? '/') . $name;
+        $param = '/@' . $name;
+
+        return $this->routeAll(array(
+            'GET @' . $name . '.index ' . $path . ' ' . $attrs => $this->routeBuildHandler($class, 'index'),
+            'GET @' . $name . '.create ' . $path . '/create ' . $attrs => $this->routeBuildHandler($class, 'create'),
+            'POST @' . $name . '.store ' . $path . ' ' . $attrs => $this->routeBuildHandler($class, 'store'),
+            'GET @' . $name . '.show ' . $path . $param . ' ' . $attrs => $this->routeBuildHandler($class, 'show'),
+            'GET @' . $name . '.edit ' . $path . $param . '/edit ' . $attrs => $this->routeBuildHandler($class, 'edit'),
+            'PUT|PATCH @' . $name . '.update ' . $path . $param . ' ' . $attrs => $this->routeBuildHandler($class, 'update'),
+            'DELETE @' . $name . '.destroy ' . $path . $param . ' ' . $attrs => $this->routeBuildHandler($class, 'destroy'),
+        ));
+    }
+
+    public function loadClass(string|object $class): static
+    {
+        $ref = new \ReflectionClass($class);
+        $group = $this->routeBuildGroup($ref);
+
+        foreach ($ref->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
+            if (!$attrs = $method->getAttributes(Attribute\Route::class)) {
+                continue;
+            }
+
+            /** @var Attribute\Route */
+            $attr = $attrs[0]->newInstance();
+
+            $route = $this->routeBuildAttr($attr, $group);
+            $handler = $this->routeBuildHandler($class, $method->name);
+
+            $this->route($route, $handler);
+        }
+
+        return $this;
+    }
+
+    public function load(string $directory): static
+    {
+        $classes = File::classList($directory . '/*.php');
+
+        array_walk($classes, fn (string $class) => $this->loadClass($class));
+
+        return $this;
+    }
+
     public function match(string $path, string $method = null, array &$matches = null): array|null
     {
         $args = null;
@@ -197,5 +267,71 @@ class Router
             },
             array(),
         );
+    }
+
+    private function routeBuildGroup(\ReflectionClass $ref): array
+    {
+        if ($attrs = $ref->getAttributes(Attribute\Route::class)) {
+            /** @var Attribute\Route */
+            $attr = $attrs[0]->newInstance();
+
+            return array(
+                'path' => rtrim($attr->path ?? '', '/') . '/',
+                'name' => $attr->name,
+                'attrs' => $attr->attrs ?? array(),
+            );
+        }
+
+        return array(
+            'path' => '/',
+            'name' => null,
+            'attrs' => array(),
+        );
+    }
+
+    private function routeBuildHandler(string|object $class, string $method): string|array
+    {
+        if (is_string($class)) {
+            return $class . '@' . $method;
+        }
+
+        return array($class, $method);
+    }
+
+    private function routeBuildAttr(Attribute\Route $attr, array $group): string
+    {
+        $route = $attr->verbs ?? 'GET';
+        $attrs = array_merge($group['attrs'], $attr->attrs ?? array());
+
+        if ($attr->name) {
+            $route .= ' @' . $group['name'] . $attr->name;
+        }
+
+        if ($attr->path) {
+            $route .= ' ' . $group['path'] . ltrim($attr->path, '/');
+        }
+
+        if ($attrs) {
+            $route .= ' [' . Arr::reduce(
+                $attrs,
+                static function ($attrs, $value, $tag) {
+                    if ($attrs) {
+                        $attrs .= ',';
+                    }
+
+                    if (is_numeric($tag)) {
+                        $attrs .= is_array($value) ? implode(',', $value) : $value;
+                    } elseif (is_array($value)) {
+                        $attrs .= $tag . '=' . implode(';', $value);
+                    } else {
+                        $attrs .= $tag . '=' . $value;
+                    }
+
+                    return $attrs;
+                },
+            ) . ']';
+        }
+
+        return $route;
     }
 }
