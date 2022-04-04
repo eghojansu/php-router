@@ -1,0 +1,26 @@
+{
+    "name": "ekok/php-router",
+    "description": "PHP Router",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Eko Kurniawan",
+            "email": "setiawanegho@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Ekok\\Router\\": "src/"
+        }
+    },
+    "require": {
+        "php": ">=8.0",
+        "ekok/php-utils": "^0"
+    },
+    "require-dev": {
+        "codeception/codeception": "~4.1",
+        "codeception/module-phpbrowser": "^1.0.0",
+        "codeception/module-asserts": "^1.0.0"
+    }
+}

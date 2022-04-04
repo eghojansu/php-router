@@ -1,0 +1,4 @@
+/coverage/
+/var/
+/vendor/
+/*.cache
