@@ -2,10 +2,10 @@
 
 use Ekok\Router\Attribute\Route;
 
-#[Route(path: '/a')]
+#[Route('/a')]
 class AController
 {
-    #[Route(path: '/home')]
+    #[Route('/home')]
     public function home()
     {
         return 'Welcome home';

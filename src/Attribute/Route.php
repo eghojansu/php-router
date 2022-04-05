@@ -8,9 +8,9 @@ namespace Ekok\Router\Attribute;
 class Route
 {
     public function __construct(
+        public string|null $path = null,
         public string|null $verbs = null,
         public string|null $name = null,
-        public string|null $path = null,
         public array|null $attrs = null,
     ) {}
 }
