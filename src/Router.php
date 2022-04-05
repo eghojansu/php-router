@@ -153,6 +153,11 @@ class Router
     public function loadClass(string|object $class): static
     {
         $ref = new \ReflectionClass($class);
+
+        if (!$ref->isInstantiable()) {
+            return $this;
+        }
+
         $group = $this->routeBuildGroup($ref);
 
         foreach ($ref->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
