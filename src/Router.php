@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Ekok\Router;
 
 use Ekok\Utils\Arr;
-use Ekok\Utils\File;
 use Ekok\Utils\Val;
+use Ekok\Utils\Call;
+use Ekok\Utils\File;
+use Ekok\Router\Attribute\Route as AttributeRoute;
 
 class Router
 {
@@ -99,7 +101,7 @@ class Router
             );
         }
 
-        $set = compact('handler', 'alias') + $this->routeAttributes($attributes);
+        $set = compact('handler', 'alias') + $this->parseAttributes($attributes);
 
         if ($alias) {
             $this->aliases[$alias] = $pattern;
@@ -122,11 +124,11 @@ class Router
         $param = '/@' . $name;
 
         return $this->routeAll(array(
-            'GET @' . $name . '.index ' . $path . ' ' . $attrs => $this->routeBuildHandler($class, 'index'),
-            'POST @' . $name . '.index ' . $attrs => $this->routeBuildHandler($class, 'store'),
-            'GET @' . $name . '.item ' . $path . $param . ' ' . $attrs => $this->routeBuildHandler($class, 'show'),
-            'PUT|PATCH @' . $name . '.item ' . $attrs => $this->routeBuildHandler($class, 'update'),
-            'DELETE @' . $name . '.item ' . $attrs => $this->routeBuildHandler($class, 'destroy'),
+            'GET @' . $name . '.index ' . $path . ' ' . $attrs => Call::standarize($class, 'index'),
+            'POST @' . $name . '.index ' . $attrs => Call::standarize($class, 'store'),
+            'GET @' . $name . '.item ' . $path . $param . ' ' . $attrs => Call::standarize($class, 'show'),
+            'PUT|PATCH @' . $name . '.item ' . $attrs => Call::standarize($class, 'update'),
+            'DELETE @' . $name . '.item ' . $attrs => Call::standarize($class, 'destroy'),
         ));
     }
 
@@ -140,13 +142,13 @@ class Router
         $param = '/@' . $name;
 
         return $this->routeAll(array(
-            'GET @' . $name . '.index ' . $path . ' ' . $attrs => $this->routeBuildHandler($class, 'index'),
-            'GET @' . $name . '.create ' . $path . '/create ' . $attrs => $this->routeBuildHandler($class, 'create'),
-            'POST @' . $name . '.store ' . $path . ' ' . $attrs => $this->routeBuildHandler($class, 'store'),
-            'GET @' . $name . '.show ' . $path . $param . ' ' . $attrs => $this->routeBuildHandler($class, 'show'),
-            'GET @' . $name . '.edit ' . $path . $param . '/edit ' . $attrs => $this->routeBuildHandler($class, 'edit'),
-            'PUT|PATCH @' . $name . '.update ' . $path . $param . ' ' . $attrs => $this->routeBuildHandler($class, 'update'),
-            'DELETE @' . $name . '.destroy ' . $path . $param . ' ' . $attrs => $this->routeBuildHandler($class, 'destroy'),
+            'GET @' . $name . '.index ' . $path . ' ' . $attrs => Call::standarize($class, 'index'),
+            'GET @' . $name . '.create ' . $path . '/create ' . $attrs => Call::standarize($class, 'create'),
+            'POST @' . $name . '.store ' . $path . ' ' . $attrs => Call::standarize($class, 'store'),
+            'GET @' . $name . '.show ' . $path . $param . ' ' . $attrs => Call::standarize($class, 'show'),
+            'GET @' . $name . '.edit ' . $path . $param . '/edit ' . $attrs => Call::standarize($class, 'edit'),
+            'PUT|PATCH @' . $name . '.update ' . $path . $param . ' ' . $attrs => Call::standarize($class, 'update'),
+            'DELETE @' . $name . '.destroy ' . $path . $param . ' ' . $attrs => Call::standarize($class, 'destroy'),
         ));
     }
 
@@ -158,18 +160,18 @@ class Router
             return $this;
         }
 
-        $group = $this->routeBuildGroup($ref);
+        $group = $this->buildGroup($ref);
 
         foreach ($ref->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
-            if (!$attrs = $method->getAttributes(Attribute\Route::class)) {
+            if (!$attrs = $method->getAttributes(AttributeRoute::class)) {
                 continue;
             }
 
-            /** @var Attribute\Route */
+            /** @var AttributeRoute */
             $attr = $attrs[0]->newInstance();
 
-            $route = $this->routeBuildAttr($attr, $group);
-            $handler = $this->routeBuildHandler($class, $method->name);
+            $route = $this->buildAttr($attr, $group);
+            $handler = Call::standarize($class, $method->name);
 
             $this->route($route, $handler);
         }
@@ -179,7 +181,7 @@ class Router
 
     public function load(string $directory): static
     {
-        $classes = File::classList($directory . '/*.php');
+        $classes = File::getClassByScan($directory . '/*.php');
 
         array_walk($classes, fn (string $class) => $this->loadClass($class));
 
@@ -189,7 +191,7 @@ class Router
     public function match(string $path, string $method = null, array &$matches = null): array|null
     {
         $args = null;
-        $matches = $this->routes[$path] ?? $this->routeFind($path, $args);
+        $matches = $this->routes[$path] ?? $this->find($path, $args);
         $match = $matches[$method ?? 'GET'] ?? $matches[strtoupper($verb ?? 'get')] ?? null;
 
         if ($match) {
@@ -207,25 +209,25 @@ class Router
         return $match;
     }
 
-    private function routeFind(string $path, array &$args = null): array|null
+    private function find(string $path, array &$args = null): array|null
     {
         return Arr::first(
             $this->routes,
             function (array $routes, string $pattern) use ($path, &$args) {
-                return $this->routeMatchPattern($pattern, $path, $args) ? $routes : null;
+                return $this->matchPattern($pattern, $path, $args) ? $routes : null;
             },
         );
     }
 
-    private function routeMatchPattern(string $pattern, string $path, array &$args = null): bool
+    private function matchPattern(string $pattern, string $path, array &$args = null): bool
     {
-        $match = !!preg_match($this->routeRegExp($pattern), $path, $matches);
+        $match = !!preg_match($this->regexify($pattern), $path, $matches);
         $args = array_filter(array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY));
 
         return $match;
     }
 
-    private function routeRegExp(string $pattern): string
+    private function regexify(string $pattern): string
     {
         return (
             '#^' .
@@ -247,7 +249,7 @@ class Router
         );
     }
 
-    private function routeAttributes(string|null $attrs): array
+    private function parseAttributes(string|null $attrs): array
     {
         return Arr::reduce(
             $attrs ? array_filter(explode(',', $attrs), 'trim') : array(),
@@ -274,15 +276,16 @@ class Router
         );
     }
 
-    private function routeBuildGroup(\ReflectionClass $ref): array
+    private function buildGroup(\ReflectionClass $ref): array
     {
-        if ($attrs = $ref->getAttributes(Attribute\Route::class)) {
-            /** @var Attribute\Route */
+        if ($attrs = $ref->getAttributes(AttributeRoute::class)) {
+            /** @var AttributeRoute */
             $attr = $attrs[0]->newInstance();
 
             return array(
                 'path' => rtrim($attr->path ?? '', '/') . '/',
                 'name' => $attr->name,
+                'verbs' => $attr->verbs ?? 'GET',
                 'attrs' => $attr->attrs ?? array(),
             );
         }
@@ -290,22 +293,14 @@ class Router
         return array(
             'path' => '/',
             'name' => null,
+            'verbs' => 'GET',
             'attrs' => array(),
         );
     }
 
-    private function routeBuildHandler(string|object $class, string $method): string|array
+    private function buildAttr(AttributeRoute $attr, array $group): string
     {
-        if (is_string($class)) {
-            return $class . '@' . $method;
-        }
-
-        return array($class, $method);
-    }
-
-    private function routeBuildAttr(Attribute\Route $attr, array $group): string
-    {
-        $route = $attr->verbs ?? 'GET';
+        $route = $attr->verbs ?? $group['verbs'];
         $attrs = array_merge($group['attrs'], $attr->attrs ?? array());
 
         if ($attr->name) {

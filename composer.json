@@ -19,7 +19,7 @@
     },
     "require": {
         "php": ">=8.0",
-        "ekok/php-utils": "^0"
+        "ekok/php-utils": "^0.2"
     },
     "require-dev": {
         "codeception/codeception": "~4.1",
