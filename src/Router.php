@@ -7,8 +7,6 @@ namespace Ekok\Router;
 use Ekok\Utils\Arr;
 use Ekok\Utils\Val;
 use Ekok\Utils\Call;
-use Ekok\Utils\File;
-use Ekok\Router\Attribute\Route as AttributeRoute;
 
 class Router
 {
@@ -152,42 +150,6 @@ class Router
         ));
     }
 
-    public function loadClass(string|object $class): static
-    {
-        $ref = new \ReflectionClass($class);
-
-        if (!$ref->isInstantiable()) {
-            return $this;
-        }
-
-        $group = $this->buildGroup($ref);
-
-        foreach ($ref->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
-            if (!$attrs = $method->getAttributes(AttributeRoute::class)) {
-                continue;
-            }
-
-            /** @var AttributeRoute */
-            $attr = $attrs[0]->newInstance();
-
-            $route = $this->buildAttr($attr, $group);
-            $handler = Call::standarize($class, $method->name);
-
-            $this->route($route, $handler);
-        }
-
-        return $this;
-    }
-
-    public function load(string $directory): static
-    {
-        $classes = File::getClassByScan($directory . '/*.php');
-
-        array_walk($classes, fn (string $class) => $this->loadClass($class));
-
-        return $this;
-    }
-
     public function match(string $path, string $method = null, array &$matches = null): array|null
     {
         $args = null;
@@ -274,64 +236,5 @@ class Router
             },
             array(),
         );
-    }
-
-    private function buildGroup(\ReflectionClass $ref): array
-    {
-        if ($attrs = $ref->getAttributes(AttributeRoute::class)) {
-            /** @var AttributeRoute */
-            $attr = $attrs[0]->newInstance();
-
-            return array(
-                'path' => rtrim($attr->path ?? '', '/') . '/',
-                'name' => $attr->name,
-                'verbs' => $attr->verbs ?? 'GET',
-                'attrs' => $attr->attrs ?? array(),
-            );
-        }
-
-        return array(
-            'path' => '/',
-            'name' => null,
-            'verbs' => 'GET',
-            'attrs' => array(),
-        );
-    }
-
-    private function buildAttr(AttributeRoute $attr, array $group): string
-    {
-        $route = $attr->verbs ?? $group['verbs'];
-        $attrs = array_merge($group['attrs'], $attr->attrs ?? array());
-
-        if ($attr->name) {
-            $route .= ' @' . $group['name'] . $attr->name;
-        }
-
-        if ($attr->path) {
-            $route .= ' ' . $group['path'] . ltrim($attr->path, '/');
-        }
-
-        if ($attrs) {
-            $route .= ' [' . Arr::reduce(
-                $attrs,
-                static function ($attrs, $value, $tag) {
-                    if ($attrs) {
-                        $attrs .= ',';
-                    }
-
-                    if (is_numeric($tag)) {
-                        $attrs .= is_array($value) ? implode(',', $value) : $value;
-                    } elseif (is_array($value)) {
-                        $attrs .= $tag . '=' . implode(';', $value);
-                    } else {
-                        $attrs .= $tag . '=' . $value;
-                    }
-
-                    return $attrs;
-                },
-            ) . ']';
-        }
-
-        return $route;
     }
 }
