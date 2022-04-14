@@ -8,16 +8,16 @@
     "packages": [
         {
             "name": "ekok/php-utils",
-            "version": "v0.2.0",
+            "version": "v0.2.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/eghojansu/php-utils.git",
-                "reference": "d2659acc18ebf4a68b11dba5ee4c7af935020011"
+                "reference": "22d29551aa0db024cf7e12811f34e10f0ddafc8f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/eghojansu/php-utils/zipball/d2659acc18ebf4a68b11dba5ee4c7af935020011",
-                "reference": "d2659acc18ebf4a68b11dba5ee4c7af935020011",
+                "url": "https://api.github.com/repos/eghojansu/php-utils/zipball/22d29551aa0db024cf7e12811f34e10f0ddafc8f",
+                "reference": "22d29551aa0db024cf7e12811f34e10f0ddafc8f",
                 "shasum": ""
             },
             "require": {
@@ -47,9 +47,9 @@
             "description": "PHP Utilities",
             "support": {
                 "issues": "https://github.com/eghojansu/php-utils/issues",
-                "source": "https://github.com/eghojansu/php-utils/tree/v0.2.0"
+                "source": "https://github.com/eghojansu/php-utils/tree/v0.2.3"
             },
-            "time": "2022-04-06T01:49:59+00:00"
+            "time": "2022-04-13T08:18:29+00:00"
         }
     ],
     "packages-dev": [
@@ -4528,5 +4528,5 @@
         "php": ">=8.0"
     },
     "platform-dev": [],
-    "plugin-api-version": "2.2.0"
+    "plugin-api-version": "2.1.0"
 }
